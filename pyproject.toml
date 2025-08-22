@@ -8,6 +8,10 @@ dependencies = [
     "pydantic>=2.11.7",
     "rich>=14.1.0",
     "typer>=0.16.1",
+    # Web framework
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "python-multipart>=0.0.6",
     # Video processing
     "opencv-python>=4.8.0",
     "moviepy>=1.0.3",
