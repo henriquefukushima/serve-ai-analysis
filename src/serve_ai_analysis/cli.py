@@ -8,14 +8,29 @@ from rich.panel import Panel
 from rich.table import Table
 from rich import print as rprint
 
-from .video.pipeline_functions import (
-    process_single_video,
-    process_videos,
-    generate_processing_report,
-    DEFAULT_PIPELINE_CONFIG
+# Import new modules
+from .video import (
+    detect_serves,
+    detect_ball_trajectory,
+    filter_ball_detections,
+    load_video,
+    save_video_segment,
+    extract_serve_clip,
+    extract_serve_clip_direct,
+    assess_video_quality,
+    optimize_video_for_processing,
+    ServeEvent,
+    DEFAULT_SERVE_CONFIG
 )
 
-app = typer.Typer(help="Tennis Serve AI Analysis - Advanced serve biomechanics analysis (Functional)")
+from .pose import (
+    estimate_pose_video,
+    filter_pose_frames_by_visibility,
+    get_pose_stats,
+    PoseFrame
+)
+
+app = typer.Typer(help="Tennis Serve AI Analysis - Advanced serve biomechanics analysis")
 console = Console()
 __version__ = "0.1.0"
 
@@ -69,30 +84,25 @@ def analyze(
     target_height: int = typer.Option(720, "--height", help="Target video height"),
 ):
     """
-    Analyze tennis serves from video input using functional programming.
+    Analyze tennis serves from video input.
     
-    This command performs the complete functional analysis pipeline:
-    1. Video quality assessment using pure functions
-    2. Video optimization using pure functions  
-    3. Serve detection using pure functions
-    4. Serve extraction using pure functions
+    This command performs the complete analysis pipeline:
+    1. Video quality assessment
+    2. Video optimization (optional)
+    3. Pose estimation
+    4. Ball detection
+    5. Serve detection
+    6. Serve extraction
     """
     if not video_path.exists():
         console.print(f"[red]Error: Video file {video_path} not found[/red]")
         raise typer.Exit(1)
     
-    # Configure the functional pipeline
-    config = {
-        **DEFAULT_PIPELINE_CONFIG,
-        "optimize_videos": optimize,
-        "target_resolution": (target_width, target_height),
-        "min_serve_duration": min_duration,
-        "max_serve_duration": max_duration,
-        "confidence_threshold": confidence
-    }
+    # Create output directory
+    output_dir.mkdir(parents=True, exist_ok=True)
     
     console.print(Panel.fit(
-        f"[bold blue]Tennis Serve Analysis (Functional)[/bold blue]\n"
+        f"[bold blue]Tennis Serve Analysis[/bold blue]\n"
         f"Input: {video_path}\n"
         f"Output: {output_dir}\n"
         f"Optimization: {'Enabled' if optimize else 'Disabled'}\n"
@@ -101,22 +111,91 @@ def analyze(
         title="Configuration"
     ))
     
-    # Process the video using functional pipeline
-    console.print("\n[bold]Starting functional video processing...[/bold]")
-    result = process_single_video(video_path, output_dir, config)
-    
-    # Generate report
-    output_dir.mkdir(parents=True, exist_ok=True)
-    report_path = output_dir / "processing_report.json"
-    generate_processing_report([result], report_path)
-    
-    if result.success:
-        console.print(f"\n[bold green]Functional analysis completed successfully![/bold green]")
-        console.print(f"🎾 Detected {len(result.serve_events)} serves")
+    try:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console
+        ) as progress:
+            
+            # Step 1: Assess video quality
+            task1 = progress.add_task("Assessing video quality...", total=None)
+            quality_metrics = assess_video_quality(str(video_path))
+            progress.update(task1, description="✅ Video quality assessed")
+            
+            # Step 2: Optimize video if requested
+            if optimize:
+                task2 = progress.add_task("Optimizing video...", total=None)
+                optimized_path = optimize_video_for_processing(
+                    str(video_path), 
+                    (target_width, target_height)
+                )
+                progress.update(task2, description="✅ Video optimized")
+                processing_path = optimized_path
+            else:
+                processing_path = str(video_path)
+            
+            # Step 3: Estimate pose
+            task3 = progress.add_task("Estimating pose...", total=None)
+            pose_frames = estimate_pose_video(processing_path, confidence)
+            pose_frames = filter_pose_frames_by_visibility(pose_frames, min_visibility=confidence)
+            progress.update(task3, description=f"✅ Pose estimated ({len(pose_frames)} frames)")
+            
+            # Step 4: Detect ball trajectory
+            task4 = progress.add_task("Detecting ball trajectory...", total=None)
+            # Use frame skipping for faster ball detection (process every 3rd frame)
+            ball_detections = detect_ball_trajectory(processing_path, frame_skip=3)
+            ball_detections = filter_ball_detections(ball_detections, min_confidence=0.3)
+            progress.update(task4, description=f"✅ Ball trajectory detected ({len(ball_detections)} detections)")
+            
+            # Step 5: Detect serves
+            task5 = progress.add_task("Detecting serves...", total=None)
+            config = DEFAULT_SERVE_CONFIG.copy()
+            config['confidence_threshold'] = confidence
+            config['serve_min_duration'] = int(min_duration * 30)  # Convert to frames
+            config['serve_max_duration'] = int(max_duration * 30)  # Convert to frames
+            
+            serve_events = detect_serves(pose_frames, ball_detections, config)
+            progress.update(task5, description=f"✅ Serves detected ({len(serve_events)} serves)")
+            
+            # Step 6: Extract serve clips
+            if serve_events:
+                task6 = progress.add_task("Extracting serve clips...", total=len(serve_events))
+                segments_dir = output_dir / "segments"
+                segments_dir.mkdir(exist_ok=True)
+                
+                for i, serve_event in enumerate(serve_events):
+                    progress.update(task6, description=f"Extracting serve {i+1}/{len(serve_events)}...")
+                    serve_path = segments_dir / f"serve_{i+1:03d}.mp4"
+                    extract_serve_clip_direct(processing_path, serve_event, str(serve_path))
+                    progress.advance(task6)
+                
+                progress.update(task6, description=f"✅ Serve clips extracted ({len(serve_events)} clips)")
+        
+        # Print results
+        console.print(f"\n[bold green]Analysis completed successfully![/bold green]")
+        console.print(f"🎾 Detected {len(serve_events)} serves")
         console.print(f"📁 Results saved to: {output_dir}")
-        console.print(f"📊 Report: {report_path}")
-    else:
-        console.print(f"\n[bold red]Analysis failed: {result.error_message}[/bold red]")
+        
+        if serve_events:
+            # Print serve statistics
+            from .video.serve_detection import get_serve_stats
+            stats = get_serve_stats(serve_events)
+            
+            table = Table(title="Serve Analysis Results")
+            table.add_column("Metric", style="cyan")
+            table.add_column("Value", style="green")
+            
+            table.add_row("Total Serves", str(stats['total_serves']))
+            table.add_row("Average Duration", f"{stats['avg_duration']:.1f} frames")
+            table.add_row("Average Confidence", f"{stats['avg_confidence']:.3f}")
+            table.add_row("Min Confidence", f"{stats['min_confidence']:.3f}")
+            table.add_row("Max Confidence", f"{stats['max_confidence']:.3f}")
+            
+            console.print(table)
+        
+    except Exception as e:
+        console.print(f"\n[bold red]Analysis failed: {str(e)}[/bold red]")
         raise typer.Exit(1)
 
 @app.command()

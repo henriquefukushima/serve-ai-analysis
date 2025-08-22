@@ -1,92 +1,61 @@
-"""Video processing module for tennis serve analysis (Functional Programming)."""
+"""Video processing module for tennis serve analysis."""
 
-# Functional programming modules
-from ..pose.pose_functions import (
-    estimate_pose_video,
-    save_pose_data,
-    load_pose_data,
-    filter_pose_frames_by_visibility,
-    get_landmark_position,
-    PoseFrame,
-    PoseLandmark
-)
-
-from .serve_functions import (
+# Core detection modules
+from .serve_detection import (
     detect_serves,
-    save_serve_events,
-    load_serve_events,
-    extract_serve_video,
-    extract_serve_videos_with_pose,
-    remove_overlapping_serves,
-    validate_serve_segment,
-    is_serve_contact_moment,
     ServeEvent,
-    DEFAULT_CONFIG
+    ServeState,
+    ServePhase,
+    validate_serve_event,
+    get_serve_stats,
+    DEFAULT_SERVE_CONFIG
 )
 
-from .quality_functions import (
-    assess_video_quality,
-    display_quality_report,
-    save_quality_report,
-    load_quality_report,
-    optimize_video,
-    is_video_already_optimized,
+from .ball_detection import (
+    detect_ball_trajectory,
+    filter_ball_detections,
+    get_ball_trajectory_stats,
+    BallDetection
+)
+
+from .video_utils import (
+    load_video,
+    save_video_segment,
+    extract_serve_clip,
+    extract_serve_clip_direct,
     get_video_info,
-    VideoQualityMetrics
-)
-
-from .pipeline_functions import (
-    process_single_video,
-    process_videos,
-    create_output_structure,
-    display_processing_summary,
-    display_batch_summary,
-    generate_processing_report,
-    load_processing_report,
-    ProcessingResult,
-    DEFAULT_PIPELINE_CONFIG
+    assess_video_quality,
+    optimize_video_for_processing,
+    create_video_preview,
+    extract_frame_at_time,
+    get_video_thumbnail
 )
 
 __all__ = [
-    # Pose functions
-    "estimate_pose_video",
-    "save_pose_data",
-    "load_pose_data",
-    "filter_pose_frames_by_visibility",
-    "get_landmark_position",
-    "PoseFrame",
-    "PoseLandmark",
-    
-    # Serve functions
+    # Serve detection
     "detect_serves",
-    "save_serve_events",
-    "load_serve_events",
-    "extract_serve_video",
-    "extract_serve_videos_with_pose",
-    "remove_overlapping_serves",
-    "validate_serve_segment",
-    "is_serve_contact_moment",
     "ServeEvent",
-    "DEFAULT_CONFIG",
+    "ServeState", 
+    "ServePhase",
+    "validate_serve_event",
+    "get_serve_stats",
+    "DEFAULT_SERVE_CONFIG",
     
-    # Quality functions
-    "assess_video_quality",
-    "display_quality_report",
-    "save_quality_report",
-    "load_quality_report",
-    "optimize_video",
-    "is_video_already_optimized",
+    # Ball detection
+    "detect_ball_trajectory",
+    "filter_ball_detections",
+    "get_ball_trajectory_stats",
+    "BallDetection",
+    
+    # Video utilities
+    "load_video",
+    "save_video_segment",
+    "extract_serve_clip",
+    "extract_serve_clip_direct",
     "get_video_info",
-    "VideoQualityMetrics",
-    
-    # Pipeline functions
-    "process_single_video",
-    "process_videos",
-    "create_output_structure",
-    "display_processing_summary",
-    "display_batch_summary",
-    "generate_processing_report",
-    "load_processing_report",
-    "ProcessingResult",
-    "DEFAULT_PIPELINE_CONFIG"
+    "assess_video_quality",
+    "optimize_video_for_processing",
+    "create_video_preview",
+    "extract_frame_at_time",
+    "get_video_thumbnail"
 ]

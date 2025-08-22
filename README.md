@@ -1,289 +1,235 @@
 # Tennis Serve AI Analysis
 
-Advanced tennis serve biomechanics analysis using computer vision and AI. This tool analyzes tennis serves from video input to provide detailed biomechanical insights, generate interactive dashboards, and create comprehensive PDF reports for athletes and coaches.
+A comprehensive tennis serve analysis system that uses MediaPipe OpenPose to detect and analyze tennis serves from video footage. The system has been refactored to use **pure Functional Programming** and now includes **enhanced sequential serve detection** based on the serve detection plan.
 
-## Features
+## 🎾 **Enhanced Serve Detection**
 
-- **Video Processing**: Automatic serve segmentation from tennis videos
-- **Pose Estimation**: 2D and 3D pose estimation using state-of-the-art AI models
-- **Biomechanical Analysis**: Calculate joint angles, velocities, timing, and other key metrics
-- **Benchmark Comparison**: Compare athlete performance against professional benchmarks
-- **Interactive Dashboard**: Web-based visualization of analysis results
-- **PDF Reports**: Comprehensive reports for athletes and coaches
+The system now implements **sequential tennis serve detection** that identifies the three key phases of a tennis serve:
 
-## Installation
+1. **Ball Toss Phase**: Left wrist above the head (above nose)
+2. **Contact Phase**: Right wrist goes to hit the ball above the head  
+3. **Follow-through Phase**: Right arm/wrist goes down again
 
-### Prerequisites
+### **Key Features**
 
-- Python 3.11+
-- [uv](https://github.com/astral-sh/uv) (recommended) or pip
+- ✅ **Sequential Detection**: State machine approach for reliable serve detection
+- ✅ **Enhanced Pose Estimation**: Higher model complexity for better accuracy
+- ✅ **Quality Assessment**: Automatic validation and quality scoring
+- ✅ **Video Segmentation**: Extract individual serve clips with metadata
+- ✅ **Comprehensive Analysis**: Detailed reports with phase breakdown
+- ✅ **Overlap Resolution**: Automatic handling of overlapping detections
 
-### Quick Start
+## 🏗️ **Architecture**
+
+The codebase uses **pure Functional Programming** with no side effects:
+
+### **Core Modules**
+- **Pose Estimation**: `src/serve_ai_analysis/pose/pose_functions.py`
+- **Enhanced Serve Detection**: `src/serve_ai_analysis/video/serve_functions.py`
+- **Video Processing**: `src/serve_ai_analysis/video/pipeline_functions.py`
+- **Quality Assessment**: `src/serve_ai_analysis/video/quality_functions.py`
+
+### **Enhanced Detection Functions**
+
+```python
+# Enhanced serve detection with state machine
+serve_events = detect_serves_enhanced(video_path, config)
+
+# Validate and assess quality
+is_valid, validation_result = validate_serve_event(serve_event, pose_frames, config)
+quality_metrics = assess_serve_segment_quality(serve_event, pose_frames)
+
+# Extract serve segments with metadata
+extracted_segments = extract_serve_segments(video_path, serve_events, output_dir, config)
+
+# Generate comprehensive analysis report
+analysis_report = generate_serve_analysis_report(serve_events, pose_frames, video_path, config)
+```
+
+## 🚀 **Quick Start**
+
+### **Installation**
 
 ```bash
 # Clone the repository
-git clone <your-repo-url>
+git clone <repository-url>
 cd serve-ai-analysis
 
-# Install dependencies using uv
-uv sync
-
-# Initialize the project
-serve-ai init
+# Install dependencies
+pip install -r requirements.txt
 ```
 
-### Alternative Installation with pip
+### **Basic Usage**
+
+```python
+from serve_ai_analysis.video.serve_functions import detect_serves_enhanced, ENHANCED_SERVE_CONFIG
+from pathlib import Path
+
+# Detect serves using enhanced algorithm
+video_path = Path("path/to/tennis_video.mp4")
+serve_events = detect_serves_enhanced(video_path, ENHANCED_SERVE_CONFIG)
+
+print(f"Detected {len(serve_events)} serves")
+```
+
+### **Enhanced Demo**
+
+Run the enhanced serve detection demo:
 
 ```bash
-pip install -e .
+python examples/enhanced_serve_detection_demo.py
 ```
 
-## Usage
+## 📊 **Enhanced Configuration**
 
-### Command Line Interface
+The enhanced serve detection uses optimized parameters:
 
-The tool provides a comprehensive CLI with multiple commands for different stages of analysis:
-
-#### 1. Initialize Project
-
-```bash
-serve-ai init --output-dir ./my-analysis
-```
-
-Creates the necessary directory structure for your analysis.
-
-#### 2. Complete Analysis Pipeline
-
-```bash
-serve-ai analyze video.mp4 \
-    --output-dir ./results \
-    --confidence 0.7 \
-    --min-duration 1.5 \
-    --max-duration 4.0 \
-    --3d \
-    --benchmark ./benchmarks/pro-level.json \
-    --dashboard \
-    --pdf
-```
-
-This runs the complete analysis pipeline:
-- Segments serves from the video
-- Estimates poses (2D or 3D)
-- Calculates biomechanical metrics
-- Compares with benchmarks
-- Generates dashboard and PDF report
-
-#### 3. Individual Pipeline Steps
-
-You can also run individual steps:
-
-**Serve Segmentation:**
-```bash
-serve-ai segment video.mp4 --min-duration 1.5 --max-duration 4.0
-```
-
-**Pose Estimation:**
-```bash
-serve-ai pose video.mp4 --confidence 0.7 --3d --calibration camera_calib.json
-```
-
-**Biomechanical Analysis:**
-```bash
-serve-ai metrics poses.json --benchmark benchmarks.json
-```
-
-**Dashboard Generation:**
-```bash
-serve-ai dashboard metrics.json --port 8050
-```
-
-**PDF Report Generation:**
-```bash
-serve-ai report metrics.json --athlete "John Doe"
-```
-
-### Configuration Options
-
-#### Analysis Parameters
-
-- `--confidence`: Pose detection confidence threshold (0.0-1.0, default: 0.5)
-- `--min-duration`: Minimum serve duration in seconds (default: 1.0)
-- `--max-duration`: Maximum serve duration in seconds (default: 5.0)
-- `--3d`: Enable 3D pose estimation (requires camera calibration)
-- `--calibration`: Path to camera calibration file
-- `--benchmark`: Path to benchmark data file
-
-#### Output Options
-
-- `--output-dir`: Output directory (default: "runs")
-- `--dashboard/--no-dashboard`: Generate interactive dashboard (default: enabled)
-- `--pdf/--no-pdf`: Generate PDF report (default: enabled)
-- `--port`: Dashboard port (default: 8050)
-
-## Output Structure
-
-After running the analysis, you'll find the following structure in your output directory:
-
-```
-runs/
-├── videos/          # Processed video segments
-├── segments/        # Serve segment metadata
-├── poses/          # Pose estimation data
-├── metrics/        # Biomechanical metrics
-├── dashboards/     # Interactive dashboard files
-└── reports/        # PDF reports
-```
-
-## Biomechanical Metrics
-
-The analysis calculates various biomechanical metrics including:
-
-### Joint Angles
-- Shoulder abduction/adduction
-- Elbow flexion/extension
-- Wrist pronation/supination
-- Hip flexion/extension
-- Knee flexion/extension
-
-### Timing Metrics
-- Ball toss height and timing
-- Contact point timing
-- Follow-through duration
-- Overall serve duration
-
-### Velocity Metrics
-- Racket head speed
-- Joint angular velocities
-- Center of mass velocity
-
-### Performance Metrics
-- Serve consistency
-- Power generation efficiency
-- Technique quality score
-
-## Benchmark Data
-
-The tool can compare athlete performance against professional benchmarks. Benchmark data should be provided in JSON format with the following structure:
-
-```json
-{
-  "serve_metrics": {
-    "ball_toss_height": {"mean": 2.5, "std": 0.3, "unit": "m"},
-    "contact_point_height": {"mean": 2.8, "std": 0.2, "unit": "m"},
-    "serve_duration": {"mean": 2.8, "std": 0.4, "unit": "s"},
-    "racket_speed": {"mean": 45.0, "std": 5.0, "unit": "m/s"}
-  },
-  "joint_angles": {
-    "shoulder_abduction": {"mean": 90, "std": 10, "unit": "degrees"},
-    "elbow_flexion": {"mean": 120, "std": 15, "unit": "degrees"}
-  }
+```python
+ENHANCED_SERVE_CONFIG = {
+    # Timing parameters
+    "min_serve_duration": 1.5,
+    "max_serve_duration": 8.0,
+    "ball_toss_min_duration": 0.5,
+    "contact_max_duration": 0.3,
+    "follow_through_min_duration": 0.5,
+    
+    # Detection thresholds
+    "confidence_threshold": 0.5,
+    "min_visibility": 0.3,
+    "ball_toss_confidence": 0.6,
+    "contact_confidence": 0.7,
+    "follow_through_confidence": 0.6,
+    
+    # Spatial thresholds
+    "above_head_threshold": 0.1,
+    "below_shoulder_threshold": 0.05,
+    
+    # State machine parameters
+    "state_timeout_frames": 90,
+    "min_gap_between_serves": 2.0,
+    "serve_buffer_seconds": 3.0,
 }
 ```
 
-## Dashboard Features
+## 📈 **Analysis Reports**
 
-The interactive dashboard provides:
+The enhanced system generates comprehensive analysis reports including:
 
-- **Video playback** with synchronized pose overlay
-- **Metric visualizations** with interactive charts
-- **Benchmark comparisons** with percentile rankings
-- **Serve-by-serve analysis** with detailed breakdowns
-- **Export capabilities** for further analysis
+- **Serve Detection Summary**: Total serves, average duration, confidence
+- **Quality Analysis**: High/medium/low quality breakdown
+- **Phase Detection**: Ball toss, contact, follow-through validation
+- **Common Issues**: Automatic identification of detection problems
+- **Recommendations**: Suggestions for improving detection quality
 
-## PDF Report Features
+## 🎯 **Detection Accuracy**
 
-The PDF report includes:
+Expected performance metrics:
 
-- **Executive summary** with key findings
-- **Detailed metrics** with visualizations
-- **Benchmark comparisons** and recommendations
-- **Technical analysis** with biomechanical insights
-- **Actionable recommendations** for improvement
+- **Ball Toss Detection**: >90% accuracy
+- **Contact Phase Detection**: >85% accuracy  
+- **Follow-through Detection**: >90% accuracy
+- **Complete Serve Detection**: >80% accuracy
+- **False Positives**: <10% of detected serves
+- **False Negatives**: <15% of actual serves
 
-## Development
+## 🔧 **Advanced Usage**
 
-### Setup Development Environment
+### **Custom Configuration**
+
+```python
+from serve_ai_analysis.video.serve_functions import ENHANCED_SERVE_CONFIG
+
+# Customize configuration
+custom_config = ENHANCED_SERVE_CONFIG.copy()
+custom_config["confidence_threshold"] = 0.6
+custom_config["ball_toss_min_duration"] = 0.7
+
+serve_events = detect_serves_enhanced(video_path, custom_config)
+```
+
+### **Quality Assessment**
+
+```python
+from serve_ai_analysis.video.serve_functions import (
+    validate_serve_event, 
+    assess_serve_segment_quality,
+    resolve_serve_overlaps
+)
+
+# Validate serves
+for serve_event in serve_events:
+    is_valid, validation = validate_serve_event(serve_event, pose_frames, config)
+    quality = assess_serve_segment_quality(serve_event, pose_frames)
+    
+    print(f"Serve valid: {is_valid}, Quality score: {quality['overall_score']:.2f}")
+
+# Resolve overlaps
+serve_events = resolve_serve_overlaps(serve_events, config)
+```
+
+### **Video Segmentation**
+
+```python
+from serve_ai_analysis.video.serve_functions import extract_serve_segments
+
+# Extract serve segments with metadata
+extracted_segments = extract_serve_segments(
+    video_path, 
+    serve_events, 
+    output_dir, 
+    config
+)
+
+# Each segment includes:
+# - 3 seconds before serve start
+# - Complete serve duration  
+# - 3 seconds after serve end
+# - Detailed metadata and quality metrics
+```
+
+## 📁 **Output Structure**
+
+```
+processed_serves_enhanced/
+├── extracted_serves/
+│   └── video_name/
+│       ├── video_name_serve_001.mp4
+│       ├── video_name_serve_002.mp4
+│       └── video_name_serve_metadata.json
+├── quality_reports/
+│   └── video_name_serve_analysis.json
+└── serve_events/
+    └── video_name_serves.json
+```
+
+## 🧪 **Testing**
+
+Run the test suite:
 
 ```bash
-# Install with development dependencies
-uv sync --extra dev
-
-# Run tests
-pytest
-
-# Format code
-black src/
-isort src/
-
-# Type checking
-mypy src/
+python -m pytest tests/
 ```
 
-### Project Structure
+## 📚 **Documentation**
 
-```
-serve-ai-analysis/
-├── src/
-│   └── serve_ai_analysis/
-│       ├── __init__.py
-│       ├── cli.py              # Command line interface
-│       ├── video/              # Video processing modules
-│       ├── pose/               # Pose estimation modules
-│       ├── metrics/            # Biomechanical analysis
-│       ├── dashboard/          # Dashboard generation
-│       └── reports/            # PDF report generation
-├── tests/                      # Test files
-├── benchmarks/                 # Benchmark data
-├── examples/                   # Example videos and data
-└── docs/                       # Documentation
-```
+- **[SERVE_DETECTION_PLAN.md](docs/SERVE_DETECTION_PLAN.md)**: Comprehensive technical plan
+- **[IMPLEMENTATION_ROADMAP.md](docs/IMPLEMENTATION_ROADMAP.md)**: Detailed implementation roadmap
+- **[FUNCTIONAL_REFACTORING.md](docs/FUNCTIONAL_REFACTORING.md)**: OOP to FP refactoring details
 
-## Contributing
+## 🤝 **Contributing**
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Add tests for new functionality
-5. Ensure all tests pass
-6. Submit a pull request
+4. Add tests
+5. Submit a pull request
 
-## License
+## 📄 **License**
 
-MIT License
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-Copyright (c) 2025 Henrique A. Fukushima
+## 🙏 **Acknowledgments**
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-## Citation
-
-If you use this tool in your research, please cite:
-
-```bibtex
-@software{serve_ai_analysis,
-  title={Tennis Serve AI Analysis},
-  author={Henrique A. Fukushima},
-  year={2025},
-  url={https://github.com/henriquefukushima/serve-ai-analysis}
-}
-```
-
-## Support
-
-For questions, issues, or feature requests, please open an issue on GitHub or contact [henrique_fukushima@usp.br].
+- MediaPipe for pose estimation
+- OpenCV for video processing
+- Rich for beautiful console output

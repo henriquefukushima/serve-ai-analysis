@@ -1,15 +1,13 @@
-"""Pose estimation module for tennis serve analysis (Functional Programming)."""
+"""Pose estimation module for tennis serve analysis."""
 
-# Functional programming modules
-from .pose_functions import (
+# Pose estimation functions
+from .pose_estimation import (
     estimate_pose_video,
-    save_pose_data,
-    load_pose_data,
     filter_pose_frames_by_visibility,
     get_landmark_position,
-    create_pose_estimator,
-    extract_landmarks_from_results,
-    process_video_frame,
+    calculate_landmark_distance,
+    is_landmark_above,
+    get_pose_stats,
     PoseFrame,
     PoseLandmark,
     LANDMARK_NAMES
@@ -17,13 +15,11 @@ from .pose_functions import (
 
 __all__ = [
     "estimate_pose_video",
-    "save_pose_data",
-    "load_pose_data",
     "filter_pose_frames_by_visibility",
     "get_landmark_position",
-    "create_pose_estimator",
-    "extract_landmarks_from_results",
-    "process_video_frame",
+    "calculate_landmark_distance",
+    "is_landmark_above",
+    "get_pose_stats",
     "PoseFrame",
     "PoseLandmark",
     "LANDMARK_NAMES"
