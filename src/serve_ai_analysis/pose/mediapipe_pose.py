@@ -33,39 +33,41 @@ class MediaPipePoseEstimator:
     
     def __init__(self, confidence_threshold: float = 0.5):
         self.confidence_threshold = confidence_threshold
-        
-        # Initialize MediaPipe Pose
-        self.mp_pose = mp.solutions.pose
-        self.pose = self.mp_pose.Pose(
-            static_image_mode=False,
-            model_complexity=2,  # 0, 1, or 2
-            smooth_landmarks=True,
-            enable_segmentation=False,
-            smooth_segmentation=True,
-            min_detection_confidence=confidence_threshold,
-            min_tracking_confidence=confidence_threshold
-        )
+        self.pose = None  # Initialize lazily
         
         # Landmark names for tennis serve analysis
         self.landmark_names = {
-            self.mp_pose.PoseLandmark.NOSE: "nose",
-            self.mp_pose.PoseLandmark.LEFT_SHOULDER: "left_shoulder",
-            self.mp_pose.PoseLandmark.RIGHT_SHOULDER: "right_shoulder",
-            self.mp_pose.PoseLandmark.LEFT_ELBOW: "left_elbow",
-            self.mp_pose.PoseLandmark.RIGHT_ELBOW: "right_elbow",
-            self.mp_pose.PoseLandmark.LEFT_WRIST: "left_wrist",
-            self.mp_pose.PoseLandmark.RIGHT_WRIST: "right_wrist",
-            self.mp_pose.PoseLandmark.LEFT_HIP: "left_hip",
-            self.mp_pose.PoseLandmark.RIGHT_HIP: "right_hip",
-            self.mp_pose.PoseLandmark.LEFT_KNEE: "left_knee",
-            self.mp_pose.PoseLandmark.RIGHT_KNEE: "right_knee",
-            self.mp_pose.PoseLandmark.LEFT_ANKLE: "left_ankle",
-            self.mp_pose.PoseLandmark.RIGHT_ANKLE: "right_ankle",
-            self.mp_pose.PoseLandmark.LEFT_HEEL: "left_heel",
-            self.mp_pose.PoseLandmark.RIGHT_HEEL: "right_heel",
-            self.mp_pose.PoseLandmark.LEFT_FOOT_INDEX: "left_foot_index",
-            self.mp_pose.PoseLandmark.RIGHT_FOOT_INDEX: "right_foot_index",
+            mp.solutions.pose.PoseLandmark.NOSE: "nose",
+            mp.solutions.pose.PoseLandmark.LEFT_SHOULDER: "left_shoulder",
+            mp.solutions.pose.PoseLandmark.RIGHT_SHOULDER: "right_shoulder",
+            mp.solutions.pose.PoseLandmark.LEFT_ELBOW: "left_elbow",
+            mp.solutions.pose.PoseLandmark.RIGHT_ELBOW: "right_elbow",
+            mp.solutions.pose.PoseLandmark.LEFT_WRIST: "left_wrist",
+            mp.solutions.pose.PoseLandmark.RIGHT_WRIST: "right_wrist",
+            mp.solutions.pose.PoseLandmark.LEFT_HIP: "left_hip",
+            mp.solutions.pose.PoseLandmark.RIGHT_HIP: "right_hip",
+            mp.solutions.pose.PoseLandmark.LEFT_KNEE: "left_knee",
+            mp.solutions.pose.PoseLandmark.RIGHT_KNEE: "right_knee",
+            mp.solutions.pose.PoseLandmark.LEFT_ANKLE: "left_ankle",
+            mp.solutions.pose.PoseLandmark.RIGHT_ANKLE: "right_ankle",
+            mp.solutions.pose.PoseLandmark.LEFT_HEEL: "left_heel",
+            mp.solutions.pose.PoseLandmark.RIGHT_HEEL: "right_heel",
+            mp.solutions.pose.PoseLandmark.LEFT_FOOT_INDEX: "left_foot_index",
+            mp.solutions.pose.PoseLandmark.RIGHT_FOOT_INDEX: "right_foot_index",
         }
+    
+    def _initialize_pose(self):
+        """Initialize MediaPipe Pose estimator."""
+        if self.pose is None:
+            self.pose = mp.solutions.pose.Pose(
+                static_image_mode=False,
+                model_complexity=1,  # Reduced from 2 to 1 for better performance
+                smooth_landmarks=True,
+                enable_segmentation=False,
+                smooth_segmentation=True,
+                min_detection_confidence=self.confidence_threshold,
+                min_tracking_confidence=self.confidence_threshold
+            )
     
     def estimate_pose_video(self, video_path: Path) -> List[PoseFrame]:
         """
@@ -79,6 +81,9 @@ class MediaPipePoseEstimator:
         """
         console.print(f"[blue]Estimating poses from {video_path}[/blue]")
         
+        # Initialize pose estimator
+        self._initialize_pose()
+        
         cap = cv2.VideoCapture(str(video_path))
         if not cap.isOpened():
             raise ValueError(f"Could not open video file: {video_path}")
@@ -91,33 +96,41 @@ class MediaPipePoseEstimator:
         pose_frames = []
         frame_count = 0
         
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret:
-                break
-            
-            # Convert BGR to RGB
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            
-            # Process frame
-            results = self.pose.process(rgb_frame)
-            
-            if results.pose_landmarks:
-                pose_frame = self._process_landmarks(
-                    results, frame_count, frame_count / fps
-                )
-                pose_frames.append(pose_frame)
-            
-            frame_count += 1
-            
-            if frame_count % 100 == 0:
-                console.print(f"Processed {frame_count}/{total_frames} frames")
+        try:
+            while cap.isOpened():
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                
+                # Convert BGR to RGB
+                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                
+                # Process frame
+                results = self.pose.process(rgb_frame)
+                
+                if results.pose_landmarks:
+                    pose_frame = self._process_landmarks(
+                        results, frame_count, frame_count / fps
+                    )
+                    pose_frames.append(pose_frame)
+                
+                frame_count += 1
+                
+                if frame_count % 100 == 0:
+                    console.print(f"Processed {frame_count}/{total_frames} frames")
         
-        cap.release()
-        self.pose.close()
+        finally:
+            cap.release()
+            self._cleanup()
         
         console.print(f"✅ Pose estimation completed: {len(pose_frames)} frames with poses")
         return pose_frames
+    
+    def _cleanup(self):
+        """Clean up MediaPipe resources."""
+        if self.pose is not None:
+            self.pose.close()
+            self.pose = None
     
     def _process_landmarks(
         self, 

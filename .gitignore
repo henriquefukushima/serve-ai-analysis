@@ -19,4 +19,59 @@ wheels/
 .vscode/
 .idea/
 
+# Project-specific directories
 test-runs/
+data/
+processed_serves/
+debug_analysis/
+
+# Backup files
+*_backup.py
+*.bak
+*.tmp
+
+# Log files
+*.log
+
+# Media files (videos, images)
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+# Data files
+*.json
+*.csv
+*.xlsx
+*.xls
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE and editor files
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
