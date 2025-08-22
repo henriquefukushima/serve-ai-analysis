@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Process tennis serve videos using the enhanced video processing pipeline.
+Process tennis serve videos using functional programming approach.
 
-This script demonstrates the complete pipeline:
-1. Video quality assessment
-2. Video optimization (if needed)
-3. Serve detection using pose landmarks
-4. Serve extraction and classification
+This script demonstrates the complete functional pipeline:
+1. Video quality assessment using pure functions
+2. Video optimization using pure functions
+3. Serve detection using pure functions
+4. Serve extraction and classification using pure functions
 """
 
 import sys
@@ -15,18 +15,22 @@ from pathlib import Path
 # Add the src directory to the path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from serve_ai_analysis.video import VideoProcessingPipeline
+from serve_ai_analysis.video.pipeline_functions import (
+    process_videos,
+    generate_processing_report,
+    DEFAULT_PIPELINE_CONFIG
+)
 from rich.console import Console
 from rich.panel import Panel
 
 console = Console()
 
 def main():
-    """Process the serve videos in the data/test directory."""
+    """Process the serve videos using functional programming approach."""
     console.print(Panel.fit(
-        "[bold blue]Tennis Serve Video Processing Pipeline[/bold blue]\n"
-        "Processing serve videos with quality assessment and pose-based detection",
-        title="Serve Analysis"
+        "[bold blue]Tennis Serve Video Processing Pipeline (Functional)[/bold blue]\n"
+        "Processing serve videos with pure functions for quality assessment and pose-based detection",
+        title="Functional Serve Analysis"
     ))
     
     # Define paths
@@ -55,30 +59,34 @@ def main():
     for video_file in video_files:
         console.print(f"  - {video_file.name}")
     
-    # Initialize the processing pipeline
-    pipeline = VideoProcessingPipeline(
-        output_dir=output_dir,
-        optimize_videos=True,
-        target_resolution=(1280, 720),
-        min_serve_duration=1.5,
-        max_serve_duration=8.0,
-        confidence_threshold=0.7
-    )
+    # Configure the pipeline (using pure functions)
+    config = {
+        **DEFAULT_PIPELINE_CONFIG,
+        "optimize_videos": True,
+        "target_resolution": (1280, 720),
+        "min_serve_duration": 1.5,
+        "max_serve_duration": 8.0,
+        "confidence_threshold": 0.7
+    }
     
-    # Process all videos
-    console.print(f"\n[bold]Starting video processing...[/bold]")
-    results = pipeline.process_videos(video_files)
+    console.print(f"\n[bold]Configuration:[/bold]")
+    for key, value in config.items():
+        console.print(f"  {key}: {value}")
     
-    # Generate comprehensive report
+    # Process all videos using functional pipeline
+    console.print(f"\n[bold]Starting functional video processing...[/bold]")
+    results = process_videos(video_files, output_dir, config)
+    
+    # Generate comprehensive report using pure function
     report_path = output_dir / "processing_report.json"
-    pipeline.generate_processing_report(results, report_path)
+    generate_processing_report(results, report_path)
     
     # Display final summary
     successful = [r for r in results if r.success]
     total_serves = sum(len(r.serve_events) for r in successful)
     
     console.print(Panel.fit(
-        f"[bold green]Processing Complete![/bold green]\n"
+        f"[bold green]Functional Processing Complete![/bold green]\n"
         f"✅ Successfully processed {len(successful)}/{len(video_files)} videos\n"
         f"🎾 Detected {total_serves} serves total\n"
         f"📁 Results saved to: {output_dir}\n"
@@ -93,6 +101,14 @@ def main():
             if item.is_file():
                 relative_path = item.relative_to(output_dir)
                 console.print(f"  📄 {relative_path}")
+    
+    console.print(f"\n[bold]Functional Programming Benefits:[/bold]")
+    console.print("✅ Pure functions with no side effects")
+    console.print("✅ Immutable data structures")
+    console.print("✅ Easier testing and debugging")
+    console.print("✅ Better composability")
+    console.print("✅ No class state management")
+    console.print("✅ More predictable behavior")
     
     console.print(f"\n[bold]Next Steps:[/bold]")
     console.print("1. Review the extracted serve videos in processed_serves/extracted_serves/")

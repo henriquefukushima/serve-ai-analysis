@@ -8,9 +8,16 @@ from rich.panel import Panel
 from rich.table import Table
 from rich import print as rprint
 
-app = typer.Typer(help="Tennis Serve AI Analysis - Advanced serve biomechanics analysis")
+from .video.pipeline_functions import (
+    process_single_video,
+    process_videos,
+    generate_processing_report,
+    DEFAULT_PIPELINE_CONFIG
+)
+
+app = typer.Typer(help="Tennis Serve AI Analysis - Advanced serve biomechanics analysis (Functional)")
 console = Console()
-__version__ = "0.0.1"
+__version__ = "0.1.0"
 
 class AnalysisConfig(BaseModel):
     """Configuration for serve analysis"""
@@ -54,94 +61,63 @@ def init(output_dir: Path = Path("runs")):
 def analyze(
     video_path: Path = typer.Argument(..., help="Path to input video file"),
     output_dir: Path = typer.Option(Path("runs"), "--output-dir", "-o", help="Output directory"),
-    confidence: float = typer.Option(0.5, "--confidence", "-c", help="Pose detection confidence threshold (0.0-1.0)"),
-    min_duration: float = typer.Option(1.0, "--min-duration", help="Minimum serve duration in seconds"),
-    max_duration: float = typer.Option(5.0, "--max-duration", help="Maximum serve duration in seconds"),
-    enable_3d: bool = typer.Option(False, "--3d", help="Enable 3D pose estimation"),
-    calibration: Optional[Path] = typer.Option(None, "--calibration", help="Camera calibration file"),
-    benchmark: Optional[Path] = typer.Option(None, "--benchmark", help="Benchmark data file"),
-    generate_dashboard: bool = typer.Option(True, "--dashboard/--no-dashboard", help="Generate interactive dashboard"),
-    generate_pdf: bool = typer.Option(True, "--pdf/--no-pdf", help="Generate PDF report"),
+    confidence: float = typer.Option(0.7, "--confidence", "-c", help="Pose detection confidence threshold (0.0-1.0)"),
+    min_duration: float = typer.Option(1.5, "--min-duration", help="Minimum serve duration in seconds"),
+    max_duration: float = typer.Option(8.0, "--max-duration", help="Maximum serve duration in seconds"),
+    optimize: bool = typer.Option(True, "--optimize/--no-optimize", help="Optimize video for processing"),
+    target_width: int = typer.Option(1280, "--width", help="Target video width"),
+    target_height: int = typer.Option(720, "--height", help="Target video height"),
 ):
     """
-    Analyze tennis serves from video input.
+    Analyze tennis serves from video input using functional programming.
     
-    This command performs the complete analysis pipeline:
-    1. Video preprocessing and serve segmentation
-    2. Pose estimation using OpenPose
-    3. Biomechanical metrics calculation
-    4. Comparison with benchmarks
-    5. Dashboard and PDF report generation
+    This command performs the complete functional analysis pipeline:
+    1. Video quality assessment using pure functions
+    2. Video optimization using pure functions  
+    3. Serve detection using pure functions
+    4. Serve extraction using pure functions
     """
     if not video_path.exists():
         console.print(f"[red]Error: Video file {video_path} not found[/red]")
         raise typer.Exit(1)
     
-    config = AnalysisConfig(
-        input_video=video_path,
-        output_dir=output_dir,
-        confidence_threshold=confidence,
-        min_serve_duration=min_duration,
-        max_serve_duration=max_duration,
-        enable_3d_estimation=enable_3d,
-        camera_calibration=calibration,
-        benchmark_data=benchmark
-    )
-    
-    # Create output directory structure
-    config.output_dir.mkdir(parents=True, exist_ok=True)
-    for subdir in ["videos", "poses", "metrics", "dashboards", "reports", "segments"]:
-        (config.output_dir / subdir).mkdir(exist_ok=True)
+    # Configure the functional pipeline
+    config = {
+        **DEFAULT_PIPELINE_CONFIG,
+        "optimize_videos": optimize,
+        "target_resolution": (target_width, target_height),
+        "min_serve_duration": min_duration,
+        "max_serve_duration": max_duration,
+        "confidence_threshold": confidence
+    }
     
     console.print(Panel.fit(
-        f"[bold blue]Tennis Serve Analysis[/bold blue]\n"
+        f"[bold blue]Tennis Serve Analysis (Functional)[/bold blue]\n"
         f"Input: {video_path}\n"
         f"Output: {output_dir}\n"
-        f"3D Estimation: {'Enabled' if enable_3d else 'Disabled'}\n"
+        f"Optimization: {'Enabled' if optimize else 'Disabled'}\n"
+        f"Target Resolution: {target_width}x{target_height}\n"
         f"Confidence: {confidence}",
         title="Configuration"
     ))
     
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console
-    ) as progress:
-        
-        # Step 1: Video preprocessing and serve segmentation
-        task1 = progress.add_task("Segmenting serves from video...", total=None)
-        # TODO: Implement serve segmentation
-        progress.update(task1, description="✅ Serve segmentation completed")
-        
-        # Step 2: Pose estimation
-        task2 = progress.add_task("Estimating poses with OpenPose...", total=None)
-        # TODO: Implement pose estimation
-        progress.update(task2, description="✅ Pose estimation completed")
-        
-        # Step 3: Biomechanical analysis
-        task3 = progress.add_task("Calculating biomechanical metrics...", total=None)
-        # TODO: Implement biomechanical analysis
-        progress.update(task3, description="✅ Biomechanical analysis completed")
-        
-        # Step 4: Benchmark comparison
-        if benchmark:
-            task4 = progress.add_task("Comparing with benchmarks...", total=None)
-            # TODO: Implement benchmark comparison
-            progress.update(task4, description="✅ Benchmark comparison completed")
-        
-        # Step 5: Generate outputs
-        if generate_dashboard:
-            task5 = progress.add_task("Generating interactive dashboard...", total=None)
-            # TODO: Implement dashboard generation
-            progress.update(task5, description="✅ Dashboard generated")
-        
-        if generate_pdf:
-            task6 = progress.add_task("Generating PDF report...", total=None)
-            # TODO: Implement PDF generation
-            progress.update(task6, description="✅ PDF report generated")
+    # Process the video using functional pipeline
+    console.print("\n[bold]Starting functional video processing...[/bold]")
+    result = process_single_video(video_path, output_dir, config)
     
-    console.print("\n[bold green]Analysis completed successfully![/bold green]")
-    _print_results_summary(config.output_dir)
+    # Generate report
+    output_dir.mkdir(parents=True, exist_ok=True)
+    report_path = output_dir / "processing_report.json"
+    generate_processing_report([result], report_path)
+    
+    if result.success:
+        console.print(f"\n[bold green]Functional analysis completed successfully![/bold green]")
+        console.print(f"🎾 Detected {len(result.serve_events)} serves")
+        console.print(f"📁 Results saved to: {output_dir}")
+        console.print(f"📊 Report: {report_path}")
+    else:
+        console.print(f"\n[bold red]Analysis failed: {result.error_message}[/bold red]")
+        raise typer.Exit(1)
 
 @app.command()
 def segment(
