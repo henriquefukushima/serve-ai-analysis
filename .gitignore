@@ -75,3 +75,17 @@ Desktop.ini
 .directory
 .Trash-*
 .nfs*
+
+# Node.js and frontend
+frontend/node_modules/
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+frontend/dist/
+frontend/build/
+frontend/.vite/
+frontend/coverage/
+
+# Temporary files
+uploads/
+outputs/

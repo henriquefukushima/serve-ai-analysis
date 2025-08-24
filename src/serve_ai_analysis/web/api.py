@@ -4,7 +4,7 @@ import os
 import uuid
 from pathlib import Path
 from typing import List, Optional
-from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
+from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -105,22 +105,46 @@ async def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "version": "2.0.0"}
 
+def validate_video_file(file: UploadFile) -> bool:
+    """Validate uploaded video file."""
+    if not file.filename:
+        return False
+    
+    # Check file extension
+    allowed_extensions = {".mp4", ".avi", ".mov", ".mkv", ".webm"}
+    file_ext = Path(file.filename).suffix.lower()
+    
+    if file_ext not in allowed_extensions:
+        return False
+    
+    # Additional MIME type validation (optional)
+    allowed_mime_types = {
+        "video/mp4", "video/mp4v-es", "video/x-m4v",
+        "video/avi", "video/x-msvideo",
+        "video/quicktime", "video/x-ms-wmv",
+        "video/x-matroska", "video/webm"
+    }
+    
+    if file.content_type and file.content_type not in allowed_mime_types:
+        # Log warning but don't reject
+        print(f"Warning: Unexpected MIME type for {file.filename}: {file.content_type}")
+    
+    return True
+
 @app.post("/upload", response_model=dict)
 async def upload_video(
     file: UploadFile = File(...),
-    config: AnalysisRequest = None
+    config: str = Form(None)
 ):
     """Upload video and start analysis."""
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file provided")
     
-    # Validate file type
-    allowed_extensions = {".mp4", ".avi", ".mov", ".mkv"}
-    file_ext = Path(file.filename).suffix.lower()
-    if file_ext not in allowed_extensions:
+    # Use enhanced validation
+    if not validate_video_file(file):
         raise HTTPException(
             status_code=400, 
-            detail=f"Unsupported file type. Allowed: {', '.join(allowed_extensions)}"
+            detail="Unsupported file type. Allowed: MP4, AVI, MOV, MKV, WebM"
         )
     
     # Generate unique task ID
@@ -140,9 +164,18 @@ async def upload_video(
         message="Video uploaded successfully"
     )
     
+    # Parse config if provided
+    analysis_config = AnalysisRequest()
+    if config:
+        try:
+            config_dict = json.loads(config)
+            analysis_config = AnalysisRequest(**config_dict)
+        except (json.JSONDecodeError, ValueError) as e:
+            print(f"Warning: Invalid config JSON: {e}")
+    
     # Start background analysis
     background_tasks = BackgroundTasks()
-    background_tasks.add_task(run_analysis, task_id, file_path, config or AnalysisRequest())
+    background_tasks.add_task(run_analysis, task_id, file_path, analysis_config)
     
     return {
         "task_id": task_id,

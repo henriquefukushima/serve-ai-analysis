@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Loader2, CheckCircle, XCircle, Play, Pause } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Play } from 'lucide-react';
 import { useAppStore } from '../store';
 import { api } from '../api';
 

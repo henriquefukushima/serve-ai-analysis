@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Activity, Settings, RotateCcw } from 'lucide-react';
 import { VideoUpload } from './components/VideoUpload';
 import { AnalysisConfig } from './components/AnalysisConfig';
