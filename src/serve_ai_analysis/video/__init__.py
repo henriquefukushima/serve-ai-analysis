@@ -8,6 +8,7 @@ from .serve_detection import (
     ServePhase,
     validate_serve_event,
     get_serve_stats,
+    extract_serve_segments,
     DEFAULT_SERVE_CONFIG
 )
 
@@ -39,6 +40,7 @@ __all__ = [
     "ServePhase",
     "validate_serve_event",
     "get_serve_stats",
+    "extract_serve_segments",
     "DEFAULT_SERVE_CONFIG",
     
     # Ball detection

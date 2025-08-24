@@ -3,7 +3,7 @@ import { Activity, Settings, RotateCcw } from 'lucide-react';
 import { VideoUpload } from './components/VideoUpload';
 import { AnalysisConfig } from './components/AnalysisConfig';
 import { ProcessingStatus } from './components/ProcessingStatus';
-import { ResultsGallery } from './components/ResultsGallery';
+import { ResultsDownload } from './components/ResultsDownload';
 import { useAppStore } from './store';
 
 function App() {
@@ -103,7 +103,7 @@ function App() {
 
           {/* Results */}
           {analysisResults && currentTaskId && (
-            <ResultsGallery taskId={currentTaskId} />
+            <ResultsDownload />
           )}
 
           {/* Start Over Button */}

@@ -25,7 +25,8 @@ from ..video import (
     assess_video_quality,
     optimize_video_for_processing,
     ServeEvent,
-    DEFAULT_SERVE_CONFIG
+    DEFAULT_SERVE_CONFIG,
+    extract_serve_segments
 )
 
 from ..pose import (
@@ -34,6 +35,8 @@ from ..pose import (
     get_pose_stats,
     PoseFrame
 )
+
+from ..reports.generator import create_serve_archive
 
 # Create FastAPI app
 app = FastAPI(
@@ -75,6 +78,13 @@ class AnalysisRequest(BaseModel):
     include_landmarks: bool = Field(default=True)
     extract_segments: bool = Field(default=True)
     player_handedness: str = Field(default="right", pattern="^(right|left)$")
+    # New parameters
+    video_quality: str = Field(default="medium", pattern="^(low|medium|high|original)$")
+    landmark_style: str = Field(default="skeleton", pattern="^(points|skeleton|both)$")
+    output_format: str = Field(default="mp4", pattern="^(mp4|avi|mov)$")
+    include_metadata: bool = Field(default=True)
+    serve_numbering: str = Field(default="sequential", pattern="^(sequential|timestamp)$")
+    compression_level: int = Field(default=5, ge=1, le=10)
 
 class AnalysisStatus(BaseModel):
     """Status model for analysis progress."""
@@ -134,7 +144,8 @@ def validate_video_file(file: UploadFile) -> bool:
 @app.post("/upload", response_model=dict)
 async def upload_video(
     file: UploadFile = File(...),
-    config: str = Form(None)
+    config: str = Form(None),
+    background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     """Upload video and start analysis."""
     if not file.filename:
@@ -174,7 +185,6 @@ async def upload_video(
             print(f"Warning: Invalid config JSON: {e}")
     
     # Start background analysis
-    background_tasks = BackgroundTasks()
     background_tasks.add_task(run_analysis, task_id, file_path, analysis_config)
     
     return {
@@ -203,6 +213,30 @@ async def get_analysis_results(task_id: str):
     
     return task.results
 
+@app.get("/download/{task_id}/archive")
+async def download_analysis_archive(task_id: str):
+    """Download the complete analysis archive as a ZIP file."""
+    if task_id not in analysis_tasks:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    task = analysis_tasks[task_id]
+    if task.status != "completed":
+        raise HTTPException(status_code=400, detail="Analysis not completed")
+    
+    # Get the ZIP file path from results
+    if not task.results or "zip_path" not in task.results:
+        raise HTTPException(status_code=404, detail="Archive not found")
+    
+    zip_path = Path(task.results["zip_path"])
+    if not zip_path.exists():
+        raise HTTPException(status_code=404, detail="Archive file not found")
+    
+    return FileResponse(
+        zip_path,
+        media_type="application/zip",
+        filename=f"serve_analysis_{task_id}.zip"
+    )
+
 @app.get("/download/{task_id}/{serve_id}")
 async def download_serve_video(task_id: str, serve_id: int):
     """Download a specific serve video."""
@@ -225,48 +259,57 @@ async def download_serve_video(task_id: str, serve_id: int):
     )
 
 async def run_analysis(task_id: str, video_path: Path, config: AnalysisRequest):
-    """Run the serve analysis in a background task."""
+    """Enhanced video processing pipeline with user configurable parameters."""
+    print(f"🔍 Starting analysis for task {task_id}")
     try:
         task = analysis_tasks[task_id]
         task.status = "processing"
         task.progress = 0.1
-        task.message = "Assessing video quality..."
+        task.message = "Loading video and initializing analysis..."
+        print(f"✅ Task {task_id} initialized with status: {task.status}")
         
-        # Step 1: Video quality assessment
-        quality_result = await asyncio.get_event_loop().run_in_executor(
-            executor, assess_video_quality, video_path
-        )
-        
+        # Step 1: Video Loading and Quality Assessment
         task.progress = 0.2
-        task.message = "Optimizing video for processing..."
+        task.message = "Assessing video quality..."
+        print(f"📊 Assessing video quality for {video_path}")
+        video_quality = await asyncio.get_event_loop().run_in_executor(
+            executor, assess_video_quality, str(video_path)
+        )
+        print(f"✅ Video quality assessment complete: {video_quality}")
         
-        # Step 2: Video optimization (if enabled)
+        # Step 2: Video Optimization (if enabled)
         if config.optimize_video:
+            task.progress = 0.3
+            task.message = "Optimizing video for processing..."
+            print(f"🔄 Optimizing video...")
             optimized_path = await asyncio.get_event_loop().run_in_executor(
-                executor, optimize_video_for_processing, video_path
+                executor, optimize_video_for_processing, str(video_path)
             )
-            video_path = optimized_path
+            processing_video_path = Path(optimized_path)
+        else:
+            processing_video_path = video_path
+            print(f"⏭️ Skipping video optimization")
         
-        task.progress = 0.3
-        task.message = "Detecting player pose..."
+        # Step 3: Serve Detection
+        task.progress = 0.4
+        task.message = "Detecting serves in video..."
+        print(f"🎾 Starting serve detection...")
         
-        # Step 3: Pose estimation
+        # Load video and get pose frames
+        print(f"👤 Estimating pose for video...")
         pose_frames = await asyncio.get_event_loop().run_in_executor(
-            executor, estimate_pose_video, video_path, config.confidence_threshold
+            executor, estimate_pose_video, str(processing_video_path), config.confidence_threshold
         )
+        print(f"✅ Pose estimation complete: {len(pose_frames)} frames")
         
-        task.progress = 0.5
-        task.message = "Detecting ball trajectory..."
-        
-        # Step 4: Ball detection
+        # Detect ball trajectory
+        print(f"🏐 Detecting ball trajectory...")
         ball_detections = await asyncio.get_event_loop().run_in_executor(
-            executor, detect_ball_trajectory, video_path
+            executor, detect_ball_trajectory, str(processing_video_path)
         )
+        print(f"✅ Ball detection complete: {len(ball_detections)} detections")
         
-        task.progress = 0.7
-        task.message = "Identifying serve segments..."
-        
-        # Step 5: Serve detection
+        # Detect serves with user config
         serve_config = DEFAULT_SERVE_CONFIG.copy()
         serve_config.update({
             "min_serve_duration": config.min_serve_duration,
@@ -274,44 +317,61 @@ async def run_analysis(task_id: str, video_path: Path, config: AnalysisRequest):
             "confidence_threshold": config.confidence_threshold
         })
         
-        serve_events = await asyncio.get_event_loop().run_in_executor(
-            executor, detect_serves, video_path, pose_frames, ball_detections, serve_config
+        print(f"🎯 Detecting serves with config: {serve_config}")
+        serves = await asyncio.get_event_loop().run_in_executor(
+            executor, detect_serves, pose_frames, ball_detections, serve_config
         )
+        print(f"✅ Serve detection complete: {len(serves)} serves found")
         
+        # Step 4: Pose Estimation (if enabled)
+        pose_data = None
+        if config.include_landmarks:
+            task.progress = 0.6
+            task.message = "Estimating player pose and landmarks..."
+            pose_data = pose_frames  # Already calculated above
+            print(f"✅ Landmarks enabled, using existing pose data")
+        
+        # Step 5: Serve Segmentation
+        task.progress = 0.8
+        task.message = "Extracting serve segments..."
+        print(f"✂️ Extracting serve segments...")
+        serve_segments = await asyncio.get_event_loop().run_in_executor(
+            executor, extract_serve_segments,
+            str(processing_video_path), 
+            serves, 
+            pose_data,
+            config.include_landmarks
+        )
+        print(f"✅ Serve segmentation complete: {len(serve_segments)} segments")
+        
+        # Step 6: Generate ZIP Archive
         task.progress = 0.9
-        task.message = "Extracting serve clips..."
+        task.message = "Creating output archive..."
+        print(f"📦 Creating ZIP archive...")
+        zip_path = await asyncio.get_event_loop().run_in_executor(
+            executor, create_serve_archive, task_id, serve_segments, config.dict()
+        )
+        print(f"✅ ZIP archive created: {zip_path}")
         
-        # Step 6: Extract serve clips
-        serve_results = []
-        for i, serve_event in enumerate(serve_events):
-            output_path = OUTPUT_DIR / f"{task_id}_serve_{i}.mp4"
-            
-            await asyncio.get_event_loop().run_in_executor(
-                executor, extract_serve_clip_direct, video_path, serve_event, output_path
-            )
-            
-            serve_results.append(ServeResult(
-                serve_id=i,
-                start_frame=serve_event.start_frame,
-                end_frame=serve_event.end_frame,
-                duration=serve_event.end_frame - serve_event.start_frame,
-                confidence=serve_event.confidence,
-                video_url=f"/static/{output_path.name}",
-                thumbnail_url=None  # Could add thumbnail generation later
-            ))
-        
+        # Step 7: Update Results
         task.progress = 1.0
         task.status = "completed"
-        task.message = f"Analysis completed. Found {len(serve_events)} serves."
+        task.message = "Analysis completed successfully"
         task.results = {
-            "total_serves": len(serve_events),
-            "video_quality": quality_result,
-            "pose_stats": get_pose_stats(pose_frames),
-            "serves": [serve.dict() for serve in serve_results],
-            "config": config.dict()
+            "task_id": task_id,
+            "total_serves": len(serves),
+            "serve_segments": serve_segments,
+            "video_quality": video_quality,
+            "download_url": f"/api/download/{task_id}/archive",
+            "config_used": config.dict(),
+            "zip_path": str(zip_path)
         }
+        print(f"🎉 Analysis completed successfully for task {task_id}")
         
     except Exception as e:
+        print(f"❌ Analysis failed for task {task_id}: {e}")
+        import traceback
+        traceback.print_exc()
         task.status = "failed"
         task.error = str(e)
         task.message = f"Analysis failed: {str(e)}"

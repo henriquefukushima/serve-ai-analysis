@@ -3,6 +3,45 @@ import { Loader2, CheckCircle, XCircle, Play } from 'lucide-react';
 import { useAppStore } from '../store';
 import { api } from '../api';
 
+interface ProcessingStep {
+  name: string;
+  progress: number;
+  message: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+}
+
+const ProcessingSteps: React.FC<{ steps: ProcessingStep[] }> = ({ steps }) => {
+  return (
+    <div className="space-y-4">
+      {steps.map((step, index) => (
+        <div key={index} className="flex items-center space-x-3">
+          <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+            step.status === 'completed' ? 'bg-green-500' :
+            step.status === 'processing' ? 'bg-blue-500' :
+            step.status === 'failed' ? 'bg-red-500' : 'bg-gray-300'
+          }`}>
+            {step.status === 'completed' ? '✓' :
+             step.status === 'processing' ? '⟳' :
+             step.status === 'failed' ? '✗' : index + 1}
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium">{step.name}</p>
+            <p className="text-xs text-gray-500">{step.message}</p>
+          </div>
+          {step.status === 'processing' && (
+            <div className="w-16 bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${step.progress}%` }}
+              />
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
 export const ProcessingStatus: React.FC = () => {
   const { 
     currentTaskId, 
@@ -27,7 +66,7 @@ export const ProcessingStatus: React.FC = () => {
         if (status.status === 'completed') {
           // Get results
           const results = await api.getAnalysisResults(currentTaskId);
-          setAnalysisResults(results.serves);
+          setAnalysisResults(results);
           setProcessing(false);
           
           // Clear interval
@@ -112,6 +151,70 @@ export const ProcessingStatus: React.FC = () => {
     }
   };
 
+  // Create processing steps based on progress
+  const createProcessingSteps = (): ProcessingStep[] => {
+    const progress = analysisStatus.progress;
+    const status = analysisStatus.status;
+    
+    const steps: ProcessingStep[] = [
+      {
+        name: "Loading video and initializing analysis",
+        progress: progress >= 0.1 ? 100 : 0,
+        message: "Preparing video for analysis...",
+        status: progress >= 0.1 ? 'completed' : (progress > 0 ? 'processing' : 'pending')
+      },
+      {
+        name: "Video quality assessment",
+        progress: progress >= 0.2 ? 100 : Math.max(0, (progress - 0.1) * 1000),
+        message: "Analyzing video quality and properties...",
+        status: progress >= 0.2 ? 'completed' : (progress > 0.1 ? 'processing' : 'pending')
+      },
+      {
+        name: "Video optimization",
+        progress: progress >= 0.3 ? 100 : Math.max(0, (progress - 0.2) * 1000),
+        message: "Optimizing video for processing...",
+        status: progress >= 0.3 ? 'completed' : (progress > 0.2 ? 'processing' : 'pending')
+      },
+      {
+        name: "Serve detection",
+        progress: progress >= 0.4 ? 100 : Math.max(0, (progress - 0.3) * 1000),
+        message: "Detecting serves in video...",
+        status: progress >= 0.4 ? 'completed' : (progress > 0.3 ? 'processing' : 'pending')
+      },
+      {
+        name: "Pose estimation",
+        progress: progress >= 0.6 ? 100 : Math.max(0, (progress - 0.4) * 500),
+        message: "Estimating player pose and landmarks...",
+        status: progress >= 0.6 ? 'completed' : (progress > 0.4 ? 'processing' : 'pending')
+      },
+      {
+        name: "Serve segmentation",
+        progress: progress >= 0.8 ? 100 : Math.max(0, (progress - 0.6) * 500),
+        message: "Extracting serve segments...",
+        status: progress >= 0.8 ? 'completed' : (progress > 0.6 ? 'processing' : 'pending')
+      },
+      {
+        name: "Creating output archive",
+        progress: progress >= 0.9 ? 100 : Math.max(0, (progress - 0.8) * 1000),
+        message: "Creating output archive...",
+        status: progress >= 0.9 ? 'completed' : (progress > 0.8 ? 'processing' : 'pending')
+      }
+    ];
+
+    if (status === 'failed') {
+      // Mark all steps after the failed one as failed
+      const failedIndex = steps.findIndex(step => step.status === 'processing');
+      if (failedIndex !== -1) {
+        steps[failedIndex].status = 'failed';
+        for (let i = failedIndex + 1; i < steps.length; i++) {
+          steps[i].status = 'pending';
+        }
+      }
+    }
+
+    return steps;
+  };
+
   return (
     <div className="card">
       <div className="flex items-center gap-4 mb-4">
@@ -128,58 +231,24 @@ export const ProcessingStatus: React.FC = () => {
       </div>
 
       {/* Progress Bar */}
-      <div className="mb-4">
+      <div className="mb-6">
         <div className="flex justify-between text-sm text-gray-600 mb-2">
-          <span>Progress</span>
+          <span>Overall Progress</span>
           <span>{Math.round(analysisStatus.progress * 100)}%</span>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-2">
+        <div className="w-full bg-gray-200 rounded-full h-3">
           <div
-            className={`h-2 rounded-full transition-all duration-300 ${getProgressColor()}`}
+            className={`h-3 rounded-full transition-all duration-300 ${getProgressColor()}`}
             style={{ width: `${analysisStatus.progress * 100}%` }}
           />
         </div>
       </div>
 
-      {/* Processing Steps */}
+      {/* Enhanced Processing Steps */}
       {analysisStatus.status === 'processing' && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm">
-            <div className={`w-2 h-2 rounded-full ${analysisStatus.progress >= 0.1 ? 'bg-green-500' : 'bg-gray-300'}`} />
-            <span className={analysisStatus.progress >= 0.1 ? 'text-green-600' : 'text-gray-500'}>
-              Video quality assessment
-            </span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <div className={`w-2 h-2 rounded-full ${analysisStatus.progress >= 0.2 ? 'bg-green-500' : 'bg-gray-300'}`} />
-            <span className={analysisStatus.progress >= 0.2 ? 'text-green-600' : 'text-gray-500'}>
-              Video optimization
-            </span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <div className={`w-2 h-2 rounded-full ${analysisStatus.progress >= 0.3 ? 'bg-green-500' : 'bg-gray-300'}`} />
-            <span className={analysisStatus.progress >= 0.3 ? 'text-green-600' : 'text-gray-500'}>
-              Pose detection
-            </span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <div className={`w-2 h-2 rounded-full ${analysisStatus.progress >= 0.5 ? 'bg-green-500' : 'bg-gray-300'}`} />
-            <span className={analysisStatus.progress >= 0.5 ? 'text-green-600' : 'text-gray-500'}>
-              Ball trajectory detection
-            </span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <div className={`w-2 h-2 rounded-full ${analysisStatus.progress >= 0.7 ? 'bg-green-500' : 'bg-gray-300'}`} />
-            <span className={analysisStatus.progress >= 0.7 ? 'text-green-600' : 'text-gray-500'}>
-              Serve identification
-            </span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <div className={`w-2 h-2 rounded-full ${analysisStatus.progress >= 0.9 ? 'bg-green-500' : 'bg-gray-300'}`} />
-            <span className={analysisStatus.progress >= 0.9 ? 'text-green-600' : 'text-gray-500'}>
-              Extracting serve clips
-            </span>
-          </div>
+        <div className="mb-6">
+          <h4 className="text-sm font-medium text-gray-700 mb-3">Processing Steps</h4>
+          <ProcessingSteps steps={createProcessingSteps()} />
         </div>
       )}
 
@@ -197,7 +266,7 @@ export const ProcessingStatus: React.FC = () => {
           <div className="text-sm text-green-700">
             <p>• Found {analysisStatus.results.total_serves} serve(s)</p>
             <p>• Processing completed successfully</p>
-            <p>• Serve clips are ready for download</p>
+            <p>• ZIP archive is ready for download</p>
           </div>
         </div>
       )}

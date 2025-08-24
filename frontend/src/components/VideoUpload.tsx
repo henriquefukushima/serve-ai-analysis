@@ -5,7 +5,7 @@ import { useAppStore } from '../store';
 import { api } from '../api';
 
 export const VideoUpload: React.FC = () => {
-  const { config, setUploading, setError, setCurrentTask, setProcessing, isUploading, error } = useAppStore();
+  const { config, setUploading, setError, setCurrentTask, setProcessing, isUploading, error, setAnalysisStatus } = useAppStore();
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
@@ -100,6 +100,15 @@ export const VideoUpload: React.FC = () => {
       
       setCurrentTask(response.task_id);
       setProcessing(true);
+      
+      // Initialize analysis status to start polling
+      setAnalysisStatus({
+        task_id: response.task_id,
+        status: 'pending',
+        progress: 0.0,
+        message: 'Video uploaded successfully, starting analysis...'
+      });
+      
       setSelectedFile(null); // Clear selected file after successful upload
       
     } catch (error) {
@@ -108,7 +117,7 @@ export const VideoUpload: React.FC = () => {
       setUploading(false);
       setUploadProgress(0);
     }
-  }, [config, setUploading, setError, setCurrentTask, setProcessing]);
+  }, [config, setUploading, setError, setCurrentTask, setProcessing, setAnalysisStatus]);
 
   // Progress bar component
   const UploadProgress: React.FC<{ progress: number; uploading: boolean }> = ({ 

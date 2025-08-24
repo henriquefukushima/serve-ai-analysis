@@ -317,3 +317,76 @@ def get_serve_stats(serve_events: List[ServeEvent]) -> dict:
         'min_confidence': min(confidences),
         'max_confidence': max(confidences)
     }
+
+
+def extract_serve_segments(
+    video_path: str, 
+    serves: List[ServeEvent], 
+    pose_data: Optional[List[PoseFrame]] = None,
+    include_landmarks: bool = True
+) -> List[Dict]:
+    """
+    Extract serve video segments with optional landmark visualization.
+    
+    Args:
+        video_path: Path to the source video
+        serves: List of detected serve events
+        pose_data: Optional pose estimation data
+        include_landmarks: Whether to overlay landmarks on videos
+    
+    Returns:
+        List of serve segment information
+    """
+    from pathlib import Path
+    from .video_utils import extract_serve_clip_direct
+    
+    segments = []
+    
+    for i, serve in enumerate(serves):
+        # Create output directory for this task
+        output_dir = Path("outputs") / f"serve_{i:03d}"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Extract serve clip
+        serve_clip_path = output_dir / f"serve_{i:03d}.mp4"
+        success = extract_serve_clip_direct(
+            video_path, 
+            serve, 
+            str(serve_clip_path),
+            buffer_seconds=1.0
+        )
+        
+        if not success:
+            print(f"Warning: Failed to extract serve {i}")
+            continue
+        
+        # Add landmarks if requested and available
+        final_clip_path = serve_clip_path
+        has_landmarks = False
+        
+        if include_landmarks and pose_data and len(pose_data) > serve.end_frame:
+            try:
+                # Extract pose data for this serve
+                serve_pose_data = pose_data[serve.start_frame:serve.end_frame + 1]
+                
+                # Add landmarks to video (placeholder for now)
+                # TODO: Implement landmark overlay functionality
+                has_landmarks = True
+                print(f"Landmarks would be added to serve {i} (not yet implemented)")
+            except Exception as e:
+                print(f"Warning: Failed to add landmarks to serve {i}: {e}")
+        
+        segments.append({
+            "serve_id": i,
+            "start_frame": serve.start_frame,
+            "end_frame": serve.end_frame,
+            "duration": serve.end_frame - serve.start_frame,
+            "confidence": serve.confidence,
+            "video_path": str(final_clip_path),
+            "has_landmarks": has_landmarks,
+            "ball_toss_frame": serve.ball_toss_frame,
+            "contact_frame": serve.contact_frame,
+            "follow_through_frame": serve.follow_through_frame
+        })
+    
+    return segments

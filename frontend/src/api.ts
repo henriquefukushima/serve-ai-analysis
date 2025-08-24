@@ -1,6 +1,6 @@
 import { AnalysisConfig, AnalysisStatus, AnalysisResults, UploadResponse } from './types';
 
-const API_BASE = '/api';
+const API_BASE = '/api';  // Use /api prefix to work with Vite proxy
 
 export const api = {
   async uploadVideo(file: File, config: AnalysisConfig): Promise<UploadResponse> {

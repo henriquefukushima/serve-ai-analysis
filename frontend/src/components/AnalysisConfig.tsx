@@ -7,8 +7,73 @@ interface AnalysisConfigProps {
   onToggle: () => void;
 }
 
+const ANALYSIS_PRESETS = {
+  quick: {
+    name: "Quick Analysis",
+    description: "Fast processing with basic output",
+    config: {
+      confidence_threshold: 0.6,
+      min_serve_duration: 1.0,
+      max_serve_duration: 6.0,
+      optimize_video: true,
+      include_landmarks: false,
+      extract_segments: true,
+      player_handedness: 'right' as const,
+      video_quality: 'medium' as const,
+      landmark_style: 'skeleton' as const,
+      output_format: 'mp4' as const,
+      include_metadata: true,
+      serve_numbering: 'sequential' as const,
+      compression_level: 5
+    }
+  },
+  detailed: {
+    name: "Detailed Analysis",
+    description: "Comprehensive analysis with landmarks",
+    config: {
+      confidence_threshold: 0.8,
+      min_serve_duration: 1.5,
+      max_serve_duration: 8.0,
+      optimize_video: false,
+      include_landmarks: true,
+      extract_segments: true,
+      player_handedness: 'right' as const,
+      landmark_style: 'skeleton' as const,
+      video_quality: 'high' as const,
+      output_format: 'mp4' as const,
+      include_metadata: true,
+      serve_numbering: 'sequential' as const,
+      compression_level: 3
+    }
+  },
+  professional: {
+    name: "Professional Analysis",
+    description: "High-quality output for coaching",
+    config: {
+      confidence_threshold: 0.9,
+      min_serve_duration: 2.0,
+      max_serve_duration: 10.0,
+      optimize_video: false,
+      include_landmarks: true,
+      extract_segments: true,
+      player_handedness: 'right' as const,
+      landmark_style: 'both' as const,
+      video_quality: 'original' as const,
+      output_format: 'mp4' as const,
+      include_metadata: true,
+      serve_numbering: 'sequential' as const,
+      compression_level: 1
+    }
+  }
+};
+
 export const AnalysisConfig: React.FC<AnalysisConfigProps> = ({ isExpanded, onToggle }) => {
   const { config, setConfig } = useAppStore();
+
+  const applyPreset = (presetKey: keyof typeof ANALYSIS_PRESETS) => {
+    const preset = ANALYSIS_PRESETS[presetKey];
+    setConfig(preset.config);
+  };
 
   return (
     <div className="card">
@@ -26,6 +91,25 @@ export const AnalysisConfig: React.FC<AnalysisConfigProps> = ({ isExpanded, onTo
 
       {isExpanded && (
         <div className="space-y-6">
+          {/* Preset Configurations */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Quick Presets
+            </label>
+            <div className="grid grid-cols-1 gap-2">
+              {Object.entries(ANALYSIS_PRESETS).map(([key, preset]) => (
+                <button
+                  key={key}
+                  onClick={() => applyPreset(key as keyof typeof ANALYSIS_PRESETS)}
+                  className="text-left p-3 border border-gray-200 rounded-lg hover:border-primary-300 hover:bg-primary-50 transition-colors"
+                >
+                  <div className="font-medium text-sm">{preset.name}</div>
+                  <div className="text-xs text-gray-500">{preset.description}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Player Handedness */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -109,6 +193,75 @@ export const AnalysisConfig: React.FC<AnalysisConfigProps> = ({ isExpanded, onTo
             </div>
           </div>
 
+          {/* Video Quality */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Video Quality
+            </label>
+            <select
+              value={config.video_quality}
+              onChange={(e) => setConfig({ video_quality: e.target.value as any })}
+              className="input-field"
+            >
+              <option value="low">Low (Fast processing)</option>
+              <option value="medium">Medium (Balanced)</option>
+              <option value="high">High (Better quality)</option>
+              <option value="original">Original (No changes)</option>
+            </select>
+          </div>
+
+          {/* Landmark Style */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Landmark Visualization Style
+            </label>
+            <select
+              value={config.landmark_style}
+              onChange={(e) => setConfig({ landmark_style: e.target.value as any })}
+              className="input-field"
+            >
+              <option value="points">Points only</option>
+              <option value="skeleton">Skeleton lines</option>
+              <option value="both">Points and skeleton</option>
+            </select>
+          </div>
+
+          {/* Output Format */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Output Video Format
+            </label>
+            <select
+              value={config.output_format}
+              onChange={(e) => setConfig({ output_format: e.target.value as any })}
+              className="input-field"
+            >
+              <option value="mp4">MP4 (Recommended)</option>
+              <option value="avi">AVI</option>
+              <option value="mov">MOV</option>
+            </select>
+          </div>
+
+          {/* Compression Level */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Compression Level: {config.compression_level}
+            </label>
+            <input
+              type="range"
+              min="1"
+              max="10"
+              step="1"
+              value={config.compression_level}
+              onChange={(e) => setConfig({ compression_level: parseInt(e.target.value) })}
+              className="w-full"
+            />
+            <div className="flex justify-between text-xs text-gray-500 mt-1">
+              <span>1 (High quality)</span>
+              <span>10 (Smaller files)</span>
+            </div>
+          </div>
+
           {/* Processing Options */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-3">
@@ -153,6 +306,19 @@ export const AnalysisConfig: React.FC<AnalysisConfigProps> = ({ isExpanded, onTo
                   <div className="text-sm text-gray-500">Creates individual video clips for each detected serve</div>
                 </div>
               </label>
+
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={config.include_metadata}
+                  onChange={(e) => setConfig({ include_metadata: e.target.checked })}
+                  className="mr-3"
+                />
+                <div>
+                  <div className="font-medium">Include metadata</div>
+                  <div className="text-sm text-gray-500">Adds detailed analysis metadata to output files</div>
+                </div>
+              </label>
             </div>
           </div>
 
@@ -167,6 +333,12 @@ export const AnalysisConfig: React.FC<AnalysisConfigProps> = ({ isExpanded, onTo
                 include_landmarks: true,
                 extract_segments: true,
                 player_handedness: 'right',
+                video_quality: 'medium',
+                landmark_style: 'skeleton',
+                output_format: 'mp4',
+                include_metadata: true,
+                serve_numbering: 'sequential',
+                compression_level: 5,
               })}
               className="btn-secondary text-sm"
             >
